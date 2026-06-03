@@ -162,13 +162,13 @@
 
 <script>
     // ==========================================
-    // 已自動填入您的 Supabase 專案 API 設定
+    // 1. 已自動填入您的 Supabase 專案 API 設定
     // ==========================================
-    const SUPABASE_URL = "https://qxufxvludifixkmlhjzk.supabase.co"; 
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF4dWZ4dmx1ZGlmaXhrbWxoanprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDg4NTQsImV4cCI6MjA5NjAyNDg1NH0.62E4O5ioE5_po5UZMQ9d3yBrnzfKnLJZm0XtvKn_RxU";
+    const CONF_URL = "https://qxufxvludifixkmlhjzk.supabase.co"; 
+    const CONF_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF4dWZ4dmx1ZGlmaXhrbWxoanprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDg4NTQsImV4cCI6MjA5NjAyNDg1NH0.62E4O5ioE5_po5UZMQ9d3yBrnzfKnLJZm0XtvKn_RxU";
     
-    // 💡 修正處：改名為 sbClient 避免與官方套件名稱衝突
-    const sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // 💡 徹底改名：不使用含有 supabase 的字眼，徹底避開官方套件的全域變數衝突
+    const dbConnector = supabase.createClient(CONF_URL, CONF_KEY);
 
     // 預設定義的 5 間會議室標的
     const ROOMS = [
@@ -220,7 +220,7 @@
       container.innerHTML = `<div class="p-8 text-center text-gray-400">系統即時資料載入中...</div>`;
 
       try {
-        const { data, error } = await sbClient
+        const { data, error } = await dbConnector
           .from('bookings')
           .select('*')
           .eq('booking_date', currentSelectedDate);
@@ -361,7 +361,7 @@
       const group_id = cycle_type !== 'single' ? crypto.randomUUID() : null;
 
       try {
-        const { data: currentDbBookings, error } = await sbClient
+        const { data: currentDbBookings, error } = await dbConnector
           .from('bookings')
           .select('*')
           .eq('room_name', room_name)
@@ -410,7 +410,7 @@
           group_id
         }));
 
-        const { error: insertErr } = await sbClient.from('bookings').insert(insertRows);
+        const { error: insertErr } = await dbConnector.from('bookings').insert(insertRows);
         if (insertErr) throw insertErr;
 
         if (conflictDates.length > 0) {
@@ -468,7 +468,7 @@
       }
 
       try {
-        let query = sbClient.from('bookings').delete();
+        let query = dbConnector.from('bookings').delete();
 
         if (isCycle && cancelScope === 'future') {
           query = query
@@ -495,5 +495,5 @@
       document.getElementById(modalId).classList.add('hidden');
     }
   </script>
-  </body>
-  </html>
+</body>
+</html>
