@@ -160,13 +160,15 @@
     </div>
   </div>
 
-  <script>
+<script>
     // ==========================================
     // 已自動填入您的 Supabase 專案 API 設定
     // ==========================================
     const SUPABASE_URL = "https://qxufxvludifixkmlhjzk.supabase.co"; 
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF4dWZ4dmx1ZGlmaXhrbWxoanprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0NDg4NTQsImV4cCI6MjA5NjAyNDg1NH0.62E4O5ioE5_po5UZMQ9d3yBrnzfKnLJZm0XtvKn_RxU";
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    
+    // 💡 修正處：改名為 sbClient 避免與官方套件名稱衝突
+    const sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     // 預設定義的 5 間會議室標的
     const ROOMS = [
@@ -184,14 +186,12 @@
       TIME_SLOTS.push(`${hh}:00`);
       TIME_SLOTS.push(`${hh}:30`);
     }
-    // 補上最後一個邊界臨界值供算截止時間使用
     TIME_SLOTS.push("20:00");
 
     let currentSelectedDate = "";
-    let loadedBookingsData = []; // 當天已撈取之預約紀錄資料快照
-    let activeDetailBooking = null; // 當前正在點擊查看詳情的對象物件
+    let loadedBookingsData = []; 
+    let activeDetailBooking = null; 
 
-    // 初始化啟動
     window.onload = function() {
       setToToday();
       document.getElementById('currentDatePicker').addEventListener('change', function(e) {
@@ -201,7 +201,6 @@
     };
 
     function setToToday() {
-      // 強制轉換為台灣 GMT+8 當日日期字串 (YYYY-MM-DD)
       const twDateString = new Date().toLocaleDateString('zh-TW', { timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
       currentSelectedDate = twDateString;
       document.getElementById('currentDatePicker').value = twDateString;
@@ -216,14 +215,12 @@
       fetchAndRenderDashboard();
     }
 
-    // 從 Supabase 後端即時獲取並渲染主畫面
     async function fetchAndRenderDashboard() {
       const container = document.getElementById('roomRowsContainer');
       container.innerHTML = `<div class="p-8 text-center text-gray-400">系統即時資料載入中...</div>`;
 
       try {
-        // 撈取當天該日期的所有預約
-        const { data, error } = await supabase
+        const { data, error } = await sbClient
           .from('bookings')
           .select('*')
           .eq('booking_date', currentSelectedDate);
@@ -234,11 +231,10 @@
         renderDashboardStructure();
       } catch (err) {
         console.error(err);
-        container.innerHTML = `<div class="p-8 text-center text-red-500">資料讀取失敗，請確認 Supabase Table 是否已正確建立。</div>`;
+        container.innerHTML = `<div class="p-8 text-center text-red-500">資料讀取失敗，請確認 Supabase Table 是否已正確建立，且 RLS 是否已關閉。</div>`;
       }
     }
 
-    // 渲染時間主看板矩陣
     function renderDashboardStructure() {
       const container = document.getElementById('roomRowsContainer');
       container.innerHTML = "";
@@ -247,18 +243,15 @@
         const rowDiv = document.createElement('div');
         rowDiv.className = "time-slot-grid grid items-stretch hover:bg-gray-50/50 transition";
 
-        // 最左側固定：房間欄位名稱
         const roomNameLabel = document.createElement('div');
         roomNameLabel.className = "p-3 font-semibold text-gray-700 bg-white border-r border-gray-200 text-xs flex items-center sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.02)]";
         roomNameLabel.innerText = room;
         rowDiv.appendChild(roomNameLabel);
 
-        // 橫軸循環渲染 28 個半小時格子 (排除最後的 20:00 邊界)
         for (let i = 0; i < TIME_SLOTS.length - 1; i++) {
           const slotStart = TIME_SLOTS[i];
           const slotEnd = TIME_SLOTS[i+1];
 
-          // 判斷此半小時時段是否已有被預約覆蓋
           const matchBooking = loadedBookingsData.find(b => {
             return b.room_name === room && (slotStart >= b.start_time.substring(0,5) && slotStart < b.end_time.substring(0,5));
           });
@@ -267,7 +260,6 @@
           gridCell.className = "border-l border-gray-200 p-1 min-h-[50px] flex items-stretch text-[11px]";
 
           if (matchBooking) {
-            // 已預約狀態：渲染顯眼色塊
             const isFirstSlot = (slotStart === matchBooking.start_time.substring(0,5));
             
             const bookedBlock = document.createElement('button');
@@ -281,7 +273,6 @@
             bookedBlock.onclick = () => openDetailModal(matchBooking);
             gridCell.appendChild(bookedBlock);
           } else {
-            // 閒置狀態：允許點擊觸發新增預約流程
             const emptyBtn = document.createElement('button');
             emptyBtn.className = "w-full h-full rounded hover:bg-blue-50/70 border border-transparent hover:border-blue-200 transition cursor-pointer";
             emptyBtn.onclick = () => openBookingModal(room, currentSelectedDate, slotStart);
@@ -295,7 +286,6 @@
       });
     }
 
-    // 開啟預約表單設定
     function openBookingModal(room, date, startTime) {
       document.getElementById('bookingForm').reset();
       
@@ -304,11 +294,9 @@
       document.getElementById('modalTitle').innerText = `預約：${room}`;
       document.getElementById('modalSubTitle').innerText = `預約日期：${date}`;
 
-      // 下拉設定：開始時間固定
       const startSelect = document.getElementById('formStartTime');
       startSelect.innerHTML = `<option value="${startTime}">${startTime}</option>`;
 
-      // 下拉設定：動態填充結束時間（必須大於開始時間）
       const endSelect = document.getElementById('formEndTime');
       endSelect.innerHTML = "";
       const startIndex = TIME_SLOTS.indexOf(startTime);
@@ -333,7 +321,6 @@
       }
     }
 
-    // 【核心機制：防撞期送出控管與循環拆解】
     async function handleFormSubmit(e) {
       e.preventDefault();
 
@@ -348,7 +335,6 @@
       const cycle_type = document.getElementById('formCycleType').value;
       const cycle_end_date = document.getElementById('formCycleEndDate').value;
 
-      // 1. 根據單次或循環，算出「所有需要預約的日期陣列」
       let datesToBook = [base_date];
 
       if (cycle_type !== 'single') {
@@ -374,9 +360,8 @@
 
       const group_id = cycle_type !== 'single' ? crypto.randomUUID() : null;
 
-      // 2. 🔐 即時防撞期審查
       try {
-        const { data: currentDbBookings, error } = await supabase
+        const { data: currentDbBookings, error } = await sbClient
           .from('bookings')
           .select('*')
           .eq('room_name', room_name)
@@ -413,7 +398,6 @@
           return;
         }
 
-        // 3. 執行批次寫入
         const insertRows = availableDates.map(date => ({
           room_name,
           booking_date: date,
@@ -426,7 +410,7 @@
           group_id
         }));
 
-        const { error: insertErr } = await supabase.from('bookings').insert(insertRows);
+        const { error: insertErr } = await sbClient.from('bookings').insert(insertRows);
         if (insertErr) throw insertErr;
 
         if (conflictDates.length > 0) {
@@ -444,7 +428,6 @@
       }
     }
 
-    // 開啟查看與取消明細視窗
     function openDetailModal(bookingObj) {
       activeDetailBooking = bookingObj;
       document.getElementById('detailCancelPassword').value = "";
@@ -468,7 +451,6 @@
       document.getElementById('detailModal').classList.remove('hidden');
     }
 
-    // 執行刪除與取消邏輯
     async function executeCancelBooking() {
       if (!activeDetailBooking) return;
 
@@ -486,7 +468,7 @@
       }
 
       try {
-        let query = supabase.from('bookings').delete();
+        let query = sbClient.from('bookings').delete();
 
         if (isCycle && cancelScope === 'future') {
           query = query
@@ -513,5 +495,5 @@
       document.getElementById(modalId).classList.add('hidden');
     }
   </script>
-</body>
-</html>
+  </body>
+  </html>
